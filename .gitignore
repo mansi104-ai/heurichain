@@ -1,0 +1,11 @@
+fixtures/*.dat
+node_modules/
+__pycache__/
+target/
+out/
+.env
+uploads/
+*.json
+!vercel.json
+walkthru/
+api/

@@ -1,0 +1,992 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>heurichain</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --bg-soft: #f4f8fc;
+      --surface: #ffffff;
+      --surface-2: #f1f6fd;
+      --border: #d4dfec;
+      --text: #12263f;
+      --muted: #5d718a;
+      --accent: #0b6bcb;
+      --accent-2: #23b5e8;
+      --green: #177d4d;
+      --red: #bf3b3b;
+      --blue: #1d5f9d;
+      --purple: #6f56c6;
+      --yellow: #8f6a00;
+      --teal: #117e72;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background:
+        radial-gradient(circle at 10% -10%, #dff0ff 0%, rgba(223,240,255,0) 35%),
+        radial-gradient(circle at 95% -20%, #e8f8ff 0%, rgba(232,248,255,0) 40%),
+        linear-gradient(180deg, var(--bg-soft) 0%, var(--bg) 100%);
+      color: var(--text);
+      font-family: 'Trebuchet MS', 'Segoe UI', Tahoma, sans-serif;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+    body.drawer-open { overflow: hidden; }
+    header {
+      background: rgba(255, 255, 255, 0.92);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(8px);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    header h1 { font-size: 20px; letter-spacing: .03em; font-weight: 800; color: var(--accent); }
+    header span { color: var(--muted); font-size: 13px; }
+    .header-right { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
+    .brand-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--green); box-shadow: 0 0 12px var(--green); }
+    .mobile-only { display: none; }
+    .layout { display: grid; grid-template-columns: 300px 1fr; min-height: calc(100vh - 66px); }
+    .sidebar {
+      background: rgba(248, 252, 255, 0.95);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      padding: 16px;
+      position: sticky;
+      top: 66px;
+      max-height: calc(100vh - 66px);
+    }
+    .sidebar-title-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+    .sidebar-title-row h2 { margin-bottom: 0; }
+    .sidebar-backdrop {
+      position: fixed;
+      inset: 66px 0 0 0;
+      background: rgba(13, 34, 56, .2);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .2s ease;
+      z-index: 35;
+    }
+    .sidebar-backdrop.open { opacity: 1; pointer-events: auto; }
+    .main { overflow-y: auto; padding: 20px; }
+    h2 { font-size: 15px; font-weight: 700; color: var(--accent); margin-bottom: 10px; letter-spacing: .03em; }
+    h3 { font-size: 13px; font-weight: 600; color: var(--blue); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .05em; }
+    .panel {
+      background: linear-gradient(180deg, #ffffff 0%, #f6faff 100%);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      box-shadow: 0 8px 24px rgba(30, 79, 131, .08);
+    }
+    .file-card {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: transform .18s ease, border-color .18s ease, background .18s ease;
+      border-left: 4px solid transparent;
+    }
+    .file-card:hover, .file-card.active {
+      border-color: var(--accent);
+      border-left-color: var(--accent);
+      background: #eef5ff;
+      transform: translateX(2px);
+    }
+    .file-card .name { font-weight: 600; color: var(--text); }
+    .file-card .meta { color: var(--muted); font-size: 12px; margin-top: 4px; }
+    .badge { display: inline-block; padding: 2px 7px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+    .badge-simple   { background: #e8f7ef; color: var(--green); }
+    .badge-coinjoin { background: #f1ecff; color: var(--purple); }
+    .badge-consolidation { background: #fff5dd; color: var(--yellow); }
+    .badge-self_transfer { background: #eaf3ff; color: var(--blue); }
+    .badge-batch_payment { background: #f3eefe; color: #6b4fc7; }
+    .badge-unknown  { background: #eef3f7; color: var(--muted); }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 20px; }
+    .stat-card {
+      background: linear-gradient(140deg, #ffffff 0%, #f4f9ff 100%);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      animation: rise .25s ease-out;
+    }
+    .stat-card .label { color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+    .stat-card .value { font-size: 24px; font-weight: 800; color: var(--accent); }
+    .stat-card .sub { color: var(--muted); font-size: 11px; margin-top: 2px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; background: #ffffff; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+    th {
+      background: #f0f6fd;
+      color: var(--muted);
+      font-weight: 700;
+      padding: 8px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    td { padding: 7px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tr:hover td { background: #eef5ff; }
+    .mono { font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 12px; }
+    .txid-cell { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px; border-radius: 4px; font-size: 11px; background: #e8f7ef; color: var(--green); margin: 1px; }
+    .chip.off { background: #ecf1f7; color: #8395ab; }
+    .filter-bar { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+    select, input {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 7px 10px;
+      border-radius: 8px;
+      font-size: 13px;
+    }
+    select:focus, input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(11,107,203,.18); }
+    .btn {
+      border: 1px solid transparent;
+      border-radius: 8px;
+      padding: 7px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn:disabled {
+      opacity: .7;
+      cursor: not-allowed;
+    }
+    .btn-secondary {
+      background: #ffffff;
+      color: var(--text);
+      border-color: var(--border);
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: #ffffff;
+      border-color: transparent;
+    }
+    .btn-ghost {
+      background: transparent;
+      color: var(--muted);
+      border-color: var(--border);
+    }
+    .btn:hover:not(:disabled) {
+      filter: brightness(1.06);
+    }
+    .block-tabs { display: flex; gap: 4px; margin-bottom: 16px; flex-wrap: wrap; }
+    .block-tab { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; font-size: 13px; }
+    .block-tab.active { border-color: var(--accent); color: var(--bg); background: var(--accent); }
+    .section { margin-bottom: 24px; }
+    .section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; flex-wrap: wrap; }
+    .helper-inline { color: var(--muted); font-size: 12px; }
+    .block-nav { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .kbd {
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      border-radius: 6px;
+      padding: 1px 6px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .summary-line {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: -4px;
+      margin-bottom: 10px;
+    }
+    .chart-bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 12px; }
+    .chart-bar-label { width: 100px; color: var(--muted); text-align: right; flex-shrink: 0; }
+    .chart-bar-track { flex: 1; background: var(--border); border-radius: 4px; height: 14px; overflow: hidden; }
+    .chart-bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      background: linear-gradient(90deg, var(--accent) 0%, var(--accent-2) 100%);
+      transition: width .4s;
+    }
+    .chart-bar-count { width: 60px; color: var(--text); font-weight: 600; }
+    .tx-detail { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-top: 8px; }
+    .tx-detail .row { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+    .tx-detail .row:last-child { border-bottom: none; }
+    .heuristic-list { display: flex; flex-wrap: wrap; gap: 4px; }
+    .loading { color: var(--muted); padding: 40px; text-align: center; }
+    .error-msg { color: var(--red); padding: 20px; }
+    .empty { color: var(--muted); padding: 20px; text-align: center; }
+    .pill-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+    .pill { padding: 4px 10px; border-radius: 999px; font-size: 12px; border: 1px solid var(--border); cursor: pointer; }
+    .pill.active { border-color: var(--accent); background: rgba(11,107,203,.1); color: var(--accent); }
+    .insight-strip {
+      display: grid;
+      grid-template-columns: 1.5fr 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .insight-card {
+      background: linear-gradient(130deg, rgba(11,107,203,.1), rgba(35,181,232,.1));
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .insight-card strong { color: var(--text); font-size: 14px; }
+    .help-text { color: var(--muted); font-size: 12px; margin-bottom: 8px; }
+    .active-filter-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 10px;
+      background: #f5f9ff;
+      margin-bottom: 12px;
+      font-size: 12px;
+    }
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 2px 8px;
+      border: 1px solid var(--border);
+      font-size: 11px;
+      margin-right: 6px;
+    }
+    .status-pill.filtered {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .table-wrap {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: auto;
+      background: #ffffff;
+    }
+    .table-wrap table { border: none; background: transparent; }
+    @keyframes rise {
+      from { transform: translateY(4px); opacity: .4; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    @media (max-width: 768px) {
+      .layout { grid-template-columns: 1fr; }
+      .mobile-only { display: inline-flex; }
+      .main { padding: 14px; }
+      .sidebar {
+        display: block;
+        position: fixed;
+        top: 66px;
+        left: 0;
+        width: min(86vw, 340px);
+        max-height: calc(100vh - 66px);
+        z-index: 40;
+        transform: translateX(-101%);
+        transition: transform .2s ease;
+      }
+      .sidebar.open {
+        transform: translateX(0);
+      }
+      .insight-strip { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="12" r="10" stroke="var(--accent)" stroke-width="2"/>
+      <path d="M8 8h5c1.1 0 2 .9 2 2s-.9 2-2 2H8m0-4v8m5-4h1c1.1 0 2 .9 2 2s-.9 2-2 2H8" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+    <h1>heurichain</h1>
+    <span id="subtitle">Select an analysis file to begin</span>
+  </div>
+  <div class="header-right">
+    <button type="button" class="btn btn-secondary mobile-only" onclick="toggleSidebar(true)">Files</button>
+    <div class="brand-dot"></div>
+    <span>Analysis Workspace</span>
+  </div>
+</header>
+
+<div id="sidebar-backdrop" class="sidebar-backdrop" onclick="toggleSidebar(false)"></div>
+
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-title-row">
+      <h2>Block Files</h2>
+      <button type="button" class="btn btn-ghost mobile-only" onclick="toggleSidebar(false)">Close</button>
+    </div>
+    <div class="panel" style="margin-bottom:12px">
+      <h3 style="margin-bottom:6px">Quick Start</h3>
+      <div class="help-text">1. Pick a result file on the left.</div>
+      <div class="help-text">2. Select a block and apply a filter.</div>
+      <div class="help-text">3. Click a transaction row for details.</div>
+    </div>
+    <div class="panel" style="margin-bottom:12px">
+      <h3 style="margin-bottom:6px">Upload Source Files</h3>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Required: blk + rev. Optional: xor.</div>
+      <input id="upl-blk" type="file" accept=".dat" style="width:100%;margin-bottom:6px" />
+      <input id="upl-rev" type="file" accept=".dat" style="width:100%;margin-bottom:6px" />
+      <input id="upl-xor" type="file" accept=".dat" style="width:100%;margin-bottom:6px" />
+      <button id="upload-btn" type="button" class="btn btn-primary" onclick="uploadAndAnalyze()" style="width:100%">Upload and Analyze</button>
+      <div id="upload-status" style="font-size:11px;color:var(--muted);margin-top:6px"></div>
+    </div>
+    <input id="file-search" placeholder="Search analysis file..." oninput="filterFileList(this.value)" style="width:100%;margin-bottom:10px" />
+    <div id="file-list"><div class="loading">Loading...</div></div>
+  </aside>
+  <main class="main" id="main-content">
+    <div class="loading" id="welcome-msg">
+      <p style="font-size:32px;margin-bottom:12px;color:var(--accent);font-weight:800">heurichain</p>
+      <p style="font-size:16px;font-weight:600;margin-bottom:8px">Blockchain Investigation Workspace</p>
+      <p style="color:var(--muted);margin-bottom:10px">Choose a block file to inspect heuristics, anomaly patterns, and classifications.</p>
+      <button type="button" class="btn btn-secondary mobile-only" onclick="toggleSidebar(true)">Open File List</button>
+    </div>
+  </main>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+let currentStem = null;
+let currentData = null;
+let currentBlockIdx = 0;
+let filterClass = '';
+let filterHeuristic = '';
+let txidQuery = '';
+let activeUploadJobId = null;
+let availableFiles = [];
+let fileQuery = '';
+let sidebarOpen = false;
+
+const CLASSIFICATION_COLORS = {
+  simple_payment: 'badge-simple',
+  coinjoin: 'badge-coinjoin',
+  consolidation: 'badge-consolidation',
+  self_transfer: 'badge-self_transfer',
+  batch_payment: 'badge-batch_payment',
+  unknown: 'badge-unknown',
+};
+
+const HEURISTIC_LABELS = {
+  cioh: 'CIOH', change_detection: 'Change', coinjoin: 'CoinJoin',
+  consolidation: 'Consolidation', address_reuse: 'Addr Reuse',
+  self_transfer: 'Self Transfer', peeling_chain: 'Peeling',
+  op_return: 'OP_RETURN', round_number_payment: 'Round #',
+};
+
+function toggleSidebar(forceOpen) {
+  sidebarOpen = typeof forceOpen === 'boolean' ? forceOpen : !sidebarOpen;
+  const sidebar = $('sidebar');
+  const backdrop = $('sidebar-backdrop');
+  if (sidebar) sidebar.classList.toggle('open', sidebarOpen);
+  if (backdrop) backdrop.classList.toggle('open', sidebarOpen);
+  document.body.classList.toggle('drawer-open', sidebarOpen);
+}
+
+window.addEventListener('keydown', (event) => {
+  const tag = (event.target && event.target.tagName ? event.target.tagName.toLowerCase() : '');
+  const typing = tag === 'input' || tag === 'textarea' || tag === 'select';
+  if (event.key === 'Escape' && sidebarOpen) {
+    toggleSidebar(false);
+    return;
+  }
+  if (!typing && currentData) {
+    if (event.key === 'ArrowLeft') {
+      goBlock(-1);
+    } else if (event.key === 'ArrowRight') {
+      goBlock(1);
+    }
+  }
+});
+
+async function api(path) {
+  const r = await fetch(path);
+  const ct = (r.headers.get('content-type') || '').toLowerCase();
+  const body = await r.text();
+  let data = null;
+  if (ct.includes('application/json')) {
+    data = JSON.parse(body);
+  } else {
+    try { data = JSON.parse(body); } catch { data = null; }
+  }
+  if (!r.ok) {
+    const msg = data?.error || data?.message || body.slice(0, 240) || `HTTP ${r.status}`;
+    throw new Error(msg);
+  }
+  if (data == null) {
+    throw new Error('API returned non-JSON response');
+  }
+  return data;
+}
+
+async function loadFileList() {
+  const data = await api('/api/blocks');
+  availableFiles = data.files || [];
+  if (!availableFiles.length) {
+    const el = $('file-list');
+    el.innerHTML = '<div class="empty">No analysis files found.<br>Run <span class="mono">python src/cli.py</span> or upload files above.</div>';
+    return;
+  }
+  renderFileList(availableFiles);
+  if (!currentStem && availableFiles.length) {
+    await loadFile(availableFiles[0].stem);
+  }
+}
+
+function renderFileList(files) {
+  const el = $('file-list');
+  if (!files.length) {
+    el.innerHTML = '<div class="empty">No matching files.</div>';
+    return;
+  }
+  el.innerHTML = files.map(f => `
+    <div class="file-card ${currentStem===f.stem?'active':''}" onclick="loadFile('${f.stem}')" id="fc-${f.stem}">
+      <div class="name">${f.file || f.stem}</div>
+      <div class="meta">
+        ${f.block_count || 0} blocks  -  ${(f.total_transactions||0).toLocaleString()} txs
+         -  <span style="color:var(--red)">${(f.flagged||0).toLocaleString()} flagged</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function filterFileList(query) {
+  fileQuery = (query || '').trim().toLowerCase();
+  if (!fileQuery) {
+    renderFileList(availableFiles);
+    return;
+  }
+  const filtered = availableFiles.filter(f =>
+    (f.stem || '').toLowerCase().includes(fileQuery) ||
+    (f.file || '').toLowerCase().includes(fileQuery)
+  );
+  renderFileList(filtered);
+}
+
+async function loadFile(stem) {
+  currentStem = stem;
+  currentBlockIdx = 0;
+  filterClass = '';
+  filterHeuristic = '';
+  txidQuery = '';
+  if (window.innerWidth <= 768) {
+    toggleSidebar(false);
+  }
+  document.querySelectorAll('.file-card').forEach(c => c.classList.remove('active'));
+  const fc = $('fc-' + stem);
+  if (fc) fc.classList.add('active');
+  $('main-content').innerHTML = '<div class="loading">Loading analysis...</div>';
+  const data = await api(`/api/blocks/${stem}`);
+  currentData = data;
+  $('subtitle').textContent = data.file || stem;
+  renderDashboard();
+}
+
+function renderDashboard() {
+  const data = currentData;
+  const summary = data.analysis_summary || {};
+  const blocks = data.blocks || [];
+  const block = blocks[currentBlockIdx] || {};
+
+  const feeStats = summary.fee_rate_stats || {};
+  const scriptDist = summary.script_type_distribution || {};
+  const totalScript = Object.values(scriptDist).reduce((a, b) => a + b, 0) || 1;
+  const dominantScript = Object.entries(scriptDist).sort((a, b) => b[1] - a[1])[0] || ['n/a', 0];
+  const flaggedPct = ((summary.flagged_transactions||0)/(summary.total_transactions_analyzed||1)*100).toFixed(1);
+  const blockPosition = blocks.length ? `${currentBlockIdx + 1} of ${blocks.length}` : '0 of 0';
+
+  let html = `
+    <div class="section">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="label">Blocks</div>
+          <div class="value">${data.block_count || 0}</div>
+          <div class="sub">${data.file}</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Total Transactions</div>
+          <div class="value">${(summary.total_transactions_analyzed||0).toLocaleString()}</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Flagged</div>
+          <div class="value" style="color:var(--red)">${(summary.flagged_transactions||0).toLocaleString()}</div>
+          <div class="sub">${flaggedPct}% of txs</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Median Fee Rate</div>
+          <div class="value">${feeStats.median_sat_vb || 0}</div>
+          <div class="sub">sat/vB  -  mean ${feeStats.mean_sat_vb || 0}</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Heuristics Applied</div>
+          <div class="value">${(summary.heuristics_applied||[]).length}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="insight-strip">
+      <div class="insight-card"><strong>Focus:</strong> Start with flagged transactions in block ${block.block_height ?? 0} and expand the tx rows for heuristic evidence.</div>
+      <div class="insight-card"><strong>Dominant Script:</strong> ${dominantScript[0]} (${Number(dominantScript[1]).toLocaleString()} outputs)</div>
+      <div class="insight-card"><strong>Fee Regime:</strong> median ${feeStats.median_sat_vb || 0} sat/vB, max ${feeStats.max_sat_vb || 0} sat/vB</div>
+    </div>
+
+    <div class="section" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:18px">
+      <h3 style="margin-bottom:10px">Terminology Quick Guide</h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;font-size:12px">
+        <div><span style="color:var(--accent);font-weight:700">CIOH:</span> Multiple inputs likely controlled by one wallet.</div>
+        <div><span style="color:var(--accent);font-weight:700">Change Output:</span> Output likely returning leftovers to sender.</div>
+        <div><span style="color:var(--accent);font-weight:700">CoinJoin:</span> Equal-value output pattern for privacy mixing.</div>
+        <div><span style="color:var(--accent);font-weight:700">Consolidation:</span> Many UTXOs merged into few outputs.</div>
+        <div><span style="color:var(--accent);font-weight:700">PSBT:</span> Partially Signed Bitcoin Transaction format.</div>
+        <div><span style="color:var(--accent);font-weight:700">Fee Rate:</span> Fee paid per virtual byte (sat/vB).</div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+      <div class="section">
+        <h3>Script Type Distribution</h3>
+        ${Object.entries(scriptDist).sort((a,b)=>b[1]-a[1]).map(([k,v]) => `
+          <div class="chart-bar-row">
+            <div class="chart-bar-label">${k}</div>
+            <div class="chart-bar-track"><div class="chart-bar-fill" style="width:${v/totalScript*100}%"></div></div>
+            <div class="chart-bar-count">${v.toLocaleString()}</div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="section">
+        <h3>Fee Rate Stats</h3>
+        <table>
+          <tr><th>Metric</th><th>sat/vB</th></tr>
+          <tr><td>Min</td><td class="mono">${feeStats.min_sat_vb}</td></tr>
+          <tr><td>Median</td><td class="mono">${feeStats.median_sat_vb}</td></tr>
+          <tr><td>Mean</td><td class="mono">${feeStats.mean_sat_vb}</td></tr>
+          <tr><td>Max</td><td class="mono">${feeStats.max_sat_vb}</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <h3>Select Block</h3>
+        <div class="block-nav">
+          <button type="button" class="btn btn-ghost" onclick="goBlock(-1)" ${currentBlockIdx===0?'disabled':''}>Previous</button>
+          <button type="button" class="btn btn-ghost" onclick="goBlock(1)" ${currentBlockIdx>=blocks.length-1?'disabled':''}>Next</button>
+          <span class="helper-inline">Viewing block ${blockPosition}</span>
+        </div>
+      </div>
+      <div class="summary-line">
+        Use <span class="kbd">←</span> and <span class="kbd">→</span> to move between blocks quickly.
+      </div>
+      <div class="help-text">Switch blocks to compare how classifications and heuristics change over time.</div>
+      <div class="block-tabs">
+        ${blocks.map((b, i) => `
+          <div class="block-tab ${i===currentBlockIdx?'active':''}" onclick="switchBlock(${i})">
+            Block ${b.block_height || i} <span style="color:var(--muted);font-size:11px">(${(b.tx_count||0).toLocaleString()} txs)</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+
+  // Block detail
+  const txs = block.transactions || [];
+  html += renderBlockDetail(block, txs);
+
+  $('main-content').innerHTML = html;
+}
+
+function getFilteredTxs(txs, queryValue = txidQuery) {
+  const query = (queryValue || '').trim().toLowerCase();
+  return txs.filter(tx => {
+    if (filterClass && tx.classification !== filterClass) return false;
+    if (filterHeuristic && !tx.heuristics?.[filterHeuristic]?.detected) return false;
+    if (query && !tx.txid.toLowerCase().includes(query)) return false;
+    return true;
+  });
+}
+
+function renderBlockDetail(block, txs) {
+  const bSummary = block.analysis_summary || {};
+  const feeStats = bSummary.fee_rate_stats || {};
+  const scriptDist = bSummary.script_type_distribution || {};
+  const totalScript = Object.values(scriptDist).reduce((a, b) => a + b, 0) || 1;
+
+  // Build classification counts from txs
+  const clsCounts = {};
+  const hCounts = {...(bSummary.heuristic_trigger_counts || {})};
+  txs.forEach(tx => {
+    const c = tx.classification || 'unknown';
+    clsCounts[c] = (clsCounts[c] || 0) + 1;
+    Object.entries(tx.heuristics || {}).forEach(([k, v]) => {
+      if (v.detected) hCounts[k] = (hCounts[k] || 0) + 1;
+    });
+  });
+  const activeFilters = [];
+  if (filterClass) activeFilters.push(`Classification: ${filterClass}`);
+  if (filterHeuristic) activeFilters.push(`Heuristic: ${HEURISTIC_LABELS[filterHeuristic] || filterHeuristic}`);
+  if (txidQuery) activeFilters.push(`TXID contains: ${txidQuery}`);
+
+  let html = `
+    <div class="section">
+      <div class="section-head">
+        <h2>Block ${block.block_height}</h2>
+        <button type="button" class="btn btn-ghost" onclick="resetViewState()">Reset view</button>
+      </div>
+      <div style="color:var(--muted);font-size:12px;margin-bottom:12px">
+        Hash: <span class="mono">${block.block_hash}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+        <div>
+          <h3>Transaction Types</h3>
+          <div class="help-text">Click one or more tags to narrow the transaction list.</div>
+          <div class="pill-row" id="cls-filters">
+            <div class="pill ${filterClass===''?'active':''}" onclick="setFilter('','')">All</div>
+            ${Object.entries(clsCounts).sort((a,b)=>b[1]-a[1]).map(([k,v]) => `
+              <div class="pill ${filterClass===k?'active':''}" onclick="setFilter('${k}','')">
+                <span class="badge ${CLASSIFICATION_COLORS[k]||'badge-unknown'}">${k}</span>
+                <span style="color:var(--muted)">${v.toLocaleString()}</span>
+              </div>
+            `).join('')}
+          </div>
+          ${txs.length===0 ? `<div style="font-size:12px;color:var(--muted)">Transaction-level classifications are omitted for this block to keep output small.</div>` : ''}
+        </div>
+        <div>
+          <h3>Detection Signals</h3>
+          <div class="help-text">Use these to focus on specific behavior patterns.</div>
+          <div class="pill-row">
+            ${Object.entries(hCounts).sort((a,b)=>b[1]-a[1]).map(([k,v]) => `
+              <div class="pill ${filterHeuristic===k?'active':''}" onclick="setFilter('','${k}')">
+                ${HEURISTIC_LABELS[k]||k} <span style="color:var(--muted)">${v.toLocaleString()}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  html += `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+      <div class="section">
+        <h3>Block Script Type Distribution</h3>
+        ${Object.entries(scriptDist).sort((a,b)=>b[1]-a[1]).map(([k,v]) => `
+          <div class="chart-bar-row">
+            <div class="chart-bar-label">${k}</div>
+            <div class="chart-bar-track"><div class="chart-bar-fill" style="width:${v/totalScript*100}%"></div></div>
+            <div class="chart-bar-count">${v.toLocaleString()}</div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="section">
+        <h3>Block Fee Rate Stats</h3>
+        <div class="table-wrap">
+          <table>
+            <tr><th>Metric</th><th>sat/vB</th></tr>
+            <tr><td>Min</td><td class="mono">${feeStats.min_sat_vb ?? 0}</td></tr>
+            <tr><td>Median</td><td class="mono">${feeStats.median_sat_vb ?? 0}</td></tr>
+            <tr><td>Mean</td><td class="mono">${feeStats.mean_sat_vb ?? 0}</td></tr>
+            <tr><td>Max</td><td class="mono">${feeStats.max_sat_vb ?? 0}</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Transaction table
+  const filtered = getFilteredTxs(txs);
+
+  if (txs.length === 0) {
+    html += `
+      <div class="section">
+        <h3>Transactions</h3>
+        <div class="empty" style="padding:14px;border:1px solid var(--border);border-radius:8px;background:var(--surface)">
+          This block does not include transaction-level rows in JSON output.
+          This is expected for non-first blocks to improve performance.
+        </div>
+      </div>
+    `;
+  } else {
+    html += `
+      <div class="section">
+        <div class="active-filter-bar">
+          <div>
+            <span class="status-pill ${activeFilters.length ? 'filtered' : ''}">${activeFilters.length ? 'Filtered' : 'All transactions'}</span>
+            ${activeFilters.length ? activeFilters.join(' | ') : 'No classification or heuristic filter applied.'}
+          </div>
+          ${activeFilters.length ? `<button type="button" class="btn btn-ghost" onclick="setFilter('','')">Clear filters</button>` : ''}
+        </div>
+        <div class="section-head">
+          <h3>Transactions (<span id="tx-count">${filtered.length.toLocaleString()}</span> shown)</h3>
+          <span class="helper-inline">Click any row to view heuristic evidence and TX summary.</span>
+        </div>
+        <div class="filter-bar">
+          <input placeholder="Search txid contains..." value="${escapeHtml(txidQuery)}" oninput="searchTxid(this.value)" style="width:240px" id="txid-search" />
+          <button type="button" class="btn btn-ghost" onclick="$('txid-search').value='';searchTxid('')">Reset search</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>TXID</th>
+                <th>Classification</th>
+                <th>Heuristics Triggered</th>
+              </tr>
+            </thead>
+            <tbody id="tx-tbody">
+              ${renderTxRows(filtered.slice(0, 200))}
+            </tbody>
+          </table>
+        </div>
+        <div id="tx-limit-note" style="color:var(--muted);padding:10px;text-align:center">${filtered.length > 200 ? `Showing first 200 of ${filtered.length.toLocaleString()}` : ''}</div>
+      </div>
+    `;
+  }
+
+  return html;
+}
+
+function renderTxRows(txs) {
+  return txs.map(tx => {
+    const triggered = Object.entries(tx.heuristics || {})
+      .filter(([,v]) => v.detected)
+      .map(([k]) => k);
+    return `
+      <tr onclick="showTxDetail('${tx.txid}')" style="cursor:pointer" id="row-${tx.txid.slice(0,8)}" title="Click to expand transaction detail">
+        <td class="mono txid-cell">${tx.txid}</td>
+        <td><span class="badge ${CLASSIFICATION_COLORS[tx.classification]||'badge-unknown'}">${tx.classification}</span></td>
+        <td>
+          <div class="heuristic-list">
+            ${triggered.map(k => `<span class="chip">${HEURISTIC_LABELS[k]||k}</span>`).join('')}
+            ${triggered.length===0?'<span style="color:var(--muted)">-</span>':''}
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function showTxDetail(txid) {
+  const block = currentData?.blocks?.[currentBlockIdx];
+  const tx = (block?.transactions || []).find(t => t.txid === txid);
+  if (!tx) return;
+
+  const existing = $('tx-detail-' + txid.slice(0,8));
+  if (existing) { existing.remove(); return; }
+  document.querySelectorAll('tr[id^="tx-detail-"]').forEach(node => node.remove());
+
+  const row = $('row-' + txid.slice(0,8));
+  if (!row) return;
+
+  const detail = document.createElement('tr');
+  detail.id = 'tx-detail-' + txid.slice(0,8);
+  const allHeuristics = Object.entries(tx.heuristics || {});
+
+  detail.innerHTML = `
+    <td colspan="3" style="padding:0">
+      <div class="tx-detail">
+        <div style="font-weight:600;margin-bottom:10px;font-family:monospace;word-break:break-all;color:var(--blue)">${txid}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div>
+            <h3 style="margin-bottom:8px">Heuristic Results</h3>
+            ${allHeuristics.map(([k, v]) => `
+              <div style="margin-bottom:8px;padding:8px;background:var(--bg);border-radius:6px;border:1px solid ${v.detected?'var(--accent)':'var(--border)'}">
+                <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+                  <span style="font-weight:600">${HEURISTIC_LABELS[k]||k}</span>
+                  <span style="${v.detected?'color:var(--green)':'color:var(--muted)'}">${v.detected?'Detected':'-'}</span>
+                </div>
+                ${v.detected ? Object.entries(v).filter(([k])=>k!=='detected').map(([k2,v2]) => `
+                  <div style="font-size:11px;color:var(--muted)">${k2}: <span style="color:var(--text)">${typeof v2==='object'?JSON.stringify(v2):v2}</span></div>
+                `).join('') : ''}
+              </div>
+            `).join('')}
+          </div>
+          <div>
+            <h3 style="margin-bottom:8px">Classification</h3>
+            <span class="badge ${CLASSIFICATION_COLORS[tx.classification]||'badge-unknown'}" style="font-size:14px;padding:4px 12px">${tx.classification}</span>
+            <div style="margin-top:12px">
+              <button type="button" class="btn btn-primary" onclick="loadTxSummary('${txid}', ${currentBlockIdx})">
+                Load TX + PSBT Summary
+              </button>
+            </div>
+            <div id="tx-summary-${txid.slice(0,8)}" style="margin-top:10px;font-size:12px;color:var(--muted)"></div>
+          </div>
+        </div>
+      </div>
+    </td>
+  `;
+  row.after(detail);
+}
+
+function goBlock(delta) {
+  const blocks = currentData?.blocks || [];
+  if (!blocks.length) return;
+  const next = Math.max(0, Math.min(blocks.length - 1, currentBlockIdx + delta));
+  if (next === currentBlockIdx) return;
+  switchBlock(next);
+}
+
+function switchBlock(idx) {
+  currentBlockIdx = idx;
+  filterClass = '';
+  filterHeuristic = '';
+  txidQuery = '';
+  renderDashboard();
+}
+
+function resetViewState() {
+  filterClass = '';
+  filterHeuristic = '';
+  txidQuery = '';
+  renderDashboard();
+}
+
+function setFilter(cls, heuristic) {
+  if (!cls && !heuristic) {
+    filterClass = '';
+    filterHeuristic = '';
+  } else {
+    if (cls) filterClass = (filterClass === cls ? '' : cls);
+    if (heuristic) filterHeuristic = (filterHeuristic === heuristic ? '' : heuristic);
+  }
+  renderDashboard();
+}
+
+function searchTxid(val) {
+  txidQuery = (val || '').trim().toLowerCase();
+  const block = currentData?.blocks?.[currentBlockIdx];
+  const txs = getFilteredTxs(block?.transactions || [], txidQuery);
+  const tbody = $('tx-tbody');
+  if (tbody) tbody.innerHTML = renderTxRows(txs.slice(0, 200));
+  const count = $('tx-count');
+  if (count) count.textContent = txs.length.toLocaleString();
+  const note = $('tx-limit-note');
+  if (note) note.textContent = txs.length > 200 ? `Showing first 200 of ${txs.length.toLocaleString()}` : '';
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+async function uploadAndAnalyze() {
+  const blk = $('upl-blk')?.files?.[0];
+  const rev = $('upl-rev')?.files?.[0];
+  const xor = $('upl-xor')?.files?.[0];
+  const status = $('upload-status');
+  const button = $('upload-btn');
+  const buttonLabel = button?.textContent || 'Upload and Analyze';
+  if (activeUploadJobId) {
+    if (status) status.textContent = 'An upload job is already running. Please wait.';
+    return;
+  }
+  if (!blk || !rev) {
+    if (status) status.textContent = 'blk and rev are required';
+    return;
+  }
+  const fd = new FormData();
+  fd.append('blk', blk);
+  fd.append('rev', rev);
+  if (xor) fd.append('xor', xor);
+  fd.append('make_report', '0'); // faster web upload path
+  if (button) button.disabled = true;
+  if (button) button.textContent = 'Analyzing...';
+  if (status) status.textContent = 'Uploading files...';
+  try {
+    const r = await fetch('/api/upload-analyze', { method: 'POST', body: fd });
+    const ct = (r.headers.get('content-type') || '').toLowerCase();
+    const body = await r.text();
+    let data = null;
+    if (ct.includes('application/json')) {
+      data = JSON.parse(body);
+    } else {
+      try { data = JSON.parse(body); } catch { data = null; }
+    }
+    if (!r.ok && r.status !== 202) throw new Error((data && data.error) ? data.error : body.slice(0, 240) || 'upload failed');
+    if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'upload failed');
+    if (!data.job_id) throw new Error('upload job id missing');
+    activeUploadJobId = data.job_id;
+    if (status) status.textContent = 'Analyzing in background...';
+    let completed = false;
+
+    // Poll job status
+    const maxPolls = 400; // ~20 minutes at 3s interval
+    for (let poll = 0; poll < maxPolls; poll++) {
+      await new Promise(res => setTimeout(res, 3000));
+      const j = await api(`/api/upload-status/${encodeURIComponent(data.job_id)}`);
+      if (j.status === 'queued' || j.status === 'processing') {
+        if (status) status.textContent = `Processing (${poll + 1}/${maxPolls})...`;
+        continue;
+      }
+      if (j.status === 'error' || !j.ok) {
+        throw new Error(j.error || 'analysis failed');
+      }
+      if (j.status === 'done') {
+        if (status) status.textContent = `Done: ${j.stem} (${j.transactions || 0} tx)`;
+        await loadFileList();
+        try {
+          await loadFile(j.stem);
+        } catch (err) {
+          if (status) status.textContent = `Done, but failed to render analysis: ${err.message}`;
+        }
+        completed = true;
+        break;
+      }
+      throw new Error('unknown job status');
+    }
+    if (status && !completed) status.textContent = 'Upload timed out waiting for analysis. Try a smaller file.';
+  } catch (e) {
+    if (status) status.textContent = `Error: ${e.message}`;
+  } finally {
+    activeUploadJobId = null;
+    if (button) button.disabled = false;
+    if (button) button.textContent = buttonLabel;
+  }
+}
+
+async function loadTxSummary(txid, blockIndex) {
+  const id = 'tx-summary-' + txid.slice(0,8);
+  const box = $(id);
+  if (!box) return;
+  box.textContent = 'Loading summary...';
+  try {
+    const q = new URLSearchParams({
+      stem: currentStem,
+      txid: txid.toLowerCase(),
+      block_index: String(blockIndex),
+      include_psbt: '1',
+    });
+    const r = await fetch('/api/tx-summary?' + q.toString());
+    const data = await r.json();
+    if (!r.ok || !data.ok) throw new Error(data.error || 'summary failed');
+    const s = data.summary || {};
+    const psbt = data.psbt_base64 || '';
+    box.innerHTML = `
+      <div style="padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg)">
+        <div>Inputs: <span class="mono">${s.input_count}</span>, Outputs: <span class="mono">${s.output_count}</span></div>
+        <div>Total In: <span class="mono">${s.total_input_sats ?? 'n/a'}</span>, Total Out: <span class="mono">${s.total_output_sats ?? 'n/a'}</span></div>
+        <div>Fee: <span class="mono">${s.fee_sats ?? 'n/a'}</span>, Fee Rate: <span class="mono">${s.fee_rate_sat_vb ?? 'n/a'} sat/vB</span></div>
+        <div style="margin-top:6px">PSBT (base64, preview):</div>
+        <div class="mono" style="max-height:64px;overflow:auto;word-break:break-all">${escapeHtml(psbt ? psbt.slice(0, 220) + (psbt.length > 220 ? '...' : '') : 'unavailable')}</div>
+      </div>
+    `;
+  } catch (e) {
+    box.textContent = 'Error: ' + e.message;
+  }
+}
+
+loadFileList();
+</script>
+</body>
+</html>
+
+
+
+

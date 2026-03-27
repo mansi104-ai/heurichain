@@ -9,3 +9,12 @@ uploads/
 !vercel.json
 walkthru/
 api/
+fixtures/
+grader/
+.dat.gz
+.dat
+grade_analysis.sh
+grade_docs.sh
+grade_reports.sh
+lib/
+uploads/

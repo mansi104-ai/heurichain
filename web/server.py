@@ -11,6 +11,7 @@ import uuid
 import time
 import threading
 import gzip
+import tempfile
 from pathlib import Path
 
 # Allow imports from project root
@@ -27,11 +28,25 @@ from src.psbt.builder import build_psbt_base64, tx_summary
 
 app = Flask(__name__, static_folder="static")
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUT_DIR = os.path.join(ROOT_DIR, "out")
 FIXTURES_DIR = os.path.join(ROOT_DIR, "fixtures")
-UPLOAD_DIR = os.path.join(ROOT_DIR, "uploads")
-os.makedirs(OUT_DIR, exist_ok=True)
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+
+def _runtime_dir(name: str) -> str:
+    """
+    Use a writable temp directory on serverless platforms, while preserving
+    the existing project-local directories for local development.
+    """
+    if os.environ.get("VERCEL"):
+        base = os.path.join(tempfile.gettempdir(), "heurichain")
+    else:
+        base = ROOT_DIR
+    path = os.path.join(base, name)
+    os.makedirs(path, exist_ok=True)
+    return path
+
+
+OUT_DIR = _runtime_dir("out")
+UPLOAD_DIR = _runtime_dir("uploads")
 
 # stem -> source file paths; populated from fixtures and upload API.
 SOURCE_REGISTRY = {}

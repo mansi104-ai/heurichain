@@ -1,0 +1,13 @@
+.git/
+.github/
+__pycache__/
+.vercel/
+fixtures/
+uploads/
+out/
+grader/
+walkthru/
+*.dat
+*.dat.gz
+*.mp4
+

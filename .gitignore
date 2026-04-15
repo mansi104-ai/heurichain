@@ -9,6 +9,8 @@ uploads/
 !vercel.json
 walkthru/
 api/
+!api/
+!api/index.py
 fixtures/
 grader/
 .dat.gz
@@ -18,3 +20,5 @@ grade_docs.sh
 grade_reports.sh
 lib/
 uploads/
+
+.vercel
